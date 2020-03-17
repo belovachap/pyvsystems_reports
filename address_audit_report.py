@@ -28,7 +28,7 @@ def format_as_vsys(amount):
     return f'{whole}.{str(fraction).ljust(8, "0")}'
 
 
-def create_address_pages(addresses, html_output_directory, height, supernode_name):
+def create_address_audit_pages(addresses, html_output_directory, height, supernode_name):
     for address in addresses:
         with open(f'{html_output_directory}/{address.address}.html', "w") as f:
             f.write("<html>")
@@ -56,7 +56,7 @@ def create_address_pages(addresses, html_output_directory, height, supernode_nam
                 </style>
             ''')
             f.write("<body>")
-            f.write(f'<h1>{supernode_name} Rewards Report</h1>')
+            f.write(f'<h1>{supernode_name} Address Audit Report</h1>')
             f.write(f'<h2>Address <span class="monospace">{address.address}</span></h2>')
             f.write(f'<p>Page Updated: <span class="monospace">{UTC_NOW}</span></p>')
             f.write(f'<p>Current Block Height: <span class="monospace">{height}</span></p>')
@@ -160,76 +160,8 @@ def create_address_pages(addresses, html_output_directory, height, supernode_nam
             f.write('</body></html>')
 
 
-def create_index_page(factory, html_output_directory, height, supernode_name):
-    with open(f'{html_output_directory}/index.html', 'w') as f:
-        f.write('<html>')
-        f.write(
-            '''
-                <style>
-                    table {
-                        border-collapse: collapse;
-                    }
-
-                    table, th, td {
-                        border: 1px solid black;
-                    }
-
-                    td {
-                        padding: 10px;
-                    }
-
-                    .monospace {
-                        font-family: "Courier New", Courier, monospace;
-                    }
-
-                    td.monospace {
-                        text-align: right;
-                    }
-                </style>
-            '''
-        )
-        f.write('<body>')
-        f.write(f'<h1>{supernode_name} Rewards Report</h1>')
-        f.write(f'<p>Page Updated: <span class="monospace">{UTC_NOW}</span></p>')
-        f.write(f'<p>Current Block Height: <span class="monospace">{height}</span></p>')
-        f.write(f'<p>Total Interest: <span class="monospace">{format_as_vsys(factory.total_interest)}</span></p>')
-        f.write(f'<p>Total Operation Fee: <span class="monospace">{format_as_vsys(factory.total_operation_fee)}</span></p>')
-        f.write(f'<p>Total Pool Distribution: <span class="monospace">{format_as_vsys(factory.total_pool_distribution)}</span></p>')
-        f.write(f'<p>Total Interest Owed: <span class="monospace">{format_as_vsys(factory.total_interest-factory.total_pool_distribution)}</span></p>')
-
-        f.write('<h2>Lenders</h2>')
-        f.write('<table>')
-        f.write(
-            '''
-                <tr>
-                    <th>Address</th>
-                    <th>Total Interest</th>
-                    <th>Total Pool Distribution</th>
-                    <th>Total Interest Owed</th></tr>
-            ''')
-        for address in factory.get_addresses():
-            f.write(
-                '''
-                    <tr>
-                        <td class="monospace">{}</td>
-                        <td class="monospace">{}</td>
-                        <td class="monospace">{}</td>
-                        <td class="monospace">{}</td>
-                    </tr>
-                '''.format(
-                    f'<a href="{address.address}.html">{address.address}</a>',
-                    format_as_vsys(address.total_interest),
-                    format_as_vsys(address.total_pool_distribution),
-                    format_as_vsys(address.total_interest_owed()),
-                )
-            )
-
-        f.write('</table>')
-        f.write("</body></html>")
-
-
 if __name__ == '__main__':
-    html_output_directory = 'html_output/rewards_report'
+    html_output_directory = 'html_output/address_audit_report'
     api_url = 'http://wallet.v.systems/api'
     supernode_name = 'Peercoin VPool'
     hot_wallet_address = 'AR6Gt6GXq7yPnXoFek83sQ6sCekQWbBj7YK'
@@ -253,5 +185,4 @@ if __name__ == '__main__':
 
     print(address)
     print(address.address)
-    # create_address_pages(addresses, html_output_directory, height, supernode_name)
-    # create_index_page(factory, html_output_directory, height, supernode_name)
+    create_address_audit_pages(addresses, html_output_directory, height, supernode_name)

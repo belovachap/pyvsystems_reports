@@ -23,7 +23,8 @@ if __name__ == '__main__':
         f.write("<h2>Reports</h2>")
         f.write("<p><ul>")
         f.write('<li><a href="mab_report/">MAB Report</a></li>')
-        f.write('<li><a href="rewards_report/">Rewards Report</a></li>')
+        f.write('<li><a href="address_report/">Address Report</a></li>')
+        f.write('<li><a href="minting_rewards_report/">Minting Rewards Report</a></li>')
         f.write("</ul></p>")
 
         f.write("</body></html>")

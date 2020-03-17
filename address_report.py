@@ -229,7 +229,7 @@ def create_index_page(factory, html_output_directory, height, supernode_name):
 
 
 if __name__ == '__main__':
-    html_output_directory = 'html_output/rewards_report'
+    html_output_directory = 'html_output/address_report'
     api_url = 'http://wallet.v.systems/api'
     supernode_name = 'Peercoin VPool'
     hot_wallet_address = 'AR6Gt6GXq7yPnXoFek83sQ6sCekQWbBj7YK'
