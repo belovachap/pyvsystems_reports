@@ -1,3 +1,3 @@
--e ../pyvsystems_rewards
+pyvsystems-rewards
 requests
 
