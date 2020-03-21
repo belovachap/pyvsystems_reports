@@ -16,16 +16,11 @@ from decimal import Decimal
 import requests
 
 from pyvsystems_rewards.address_factory import AddressFactory
+from pyvsystems_rewards.format import format_as_vsys
+from pyvsystems_rewards.minting_reward import MintingReward
 
 
 UTC_NOW = datetime.utcnow()
-
-
-def format_as_vsys(amount):
-    amount = int(amount)
-    whole = int(amount / 100000000)
-    fraction = amount % 100000000
-    return f'{whole}.{str(fraction).ljust(8, "0")}'
 
 
 def create_address_audit_pages(addresses, html_output_directory, height, supernode_name):
@@ -56,105 +51,67 @@ def create_address_audit_pages(addresses, html_output_directory, height, superno
                 </style>
             ''')
             f.write("<body>")
-            f.write(f'<h1>{supernode_name} Address Audit Report</h1>')
-            f.write(f'<h2>Address <span class="monospace">{address.address}</span></h2>')
+            f.write(f'<h1><a href="../index.html">{supernode_name}</a> Address Audit Report</h1>')
             f.write(f'<p>Page Updated: <span class="monospace">{UTC_NOW}</span></p>')
             f.write(f'<p>Current Block Height: <span class="monospace">{height}</span></p>')
+
+            f.write(f'<h2>Address Audit <span class="monospace">{address.address}</span></h2>')
             f.write(f'<p>Total Interest: <span class="monospace">{format_as_vsys(address.total_interest)}</span></p>')
             f.write(f'<p>Total Pool Distribution: <span class="monospace">{format_as_vsys(address.total_pool_distribution)}</span></p>')
             f.write(f'<p>Interest Owed: <span class="monospace">{format_as_vsys(address.total_interest_owed())}</span></p>')
+            f.write(f'<p><a href="../address_report/{address.address}.html">Address Report</a></p>')
 
-            f.write(f'<h2>Active Leases</h2>')
+            # An ordered (by height) list of combined minting rewards and pool distributions
+            events = list(address.minting_rewards()) + list(address.pool_distributions())
+            events = sorted(events, key=lambda x: x.height)
+
             f.write('<table>')
             f.write(
                 '''
                     <tr>
-                        <th>Lease ID</th>
-                        <th>Amount</th>
-                        <th>Start Height</th>
-                        <th>Total Interest</th>
-                    </tr>
-                '''
-            )
-            for lease in address.active_leases(height):
-                f.write('''
-                        <tr>
-                            <td class="monospace">{}</td>
-                            <td class="monospace">{}</td>
-                            <td class="monospace">{}</td>
-                            <td class="monospace">{}</td>
-                        </tr>
-                    '''.format(
-                        lease.lease_id,
-                        format_as_vsys(lease.amount),
-                        lease.start_height,
-                        format_as_vsys(lease.total_interest),
-                    )
-                )
-
-            f.write('</table>')
-
-            f.write(f'<h2>Inactive Leases</h2>')
-            f.write('<table>')
-            f.write(
-                '''
-                    <tr>
-                        <th>Lease ID</th>
-                        <th>Amount</th>
-                        <th>Start Height</th>
-                        <th>Stop Height</th>
-                        <th>Total Interest</th>
-                    </tr>
-                '''
-            )
-            for lease in address.inactive_leases(height):
-                f.write('''
-                        <tr>
-                            <td class="monospace">{}</td>
-                            <td class="monospace">{}</td>
-                            <td class="monospace">{}</td>
-                            <td class="monospace">{}</td>
-                            <td class="monospace">{}</td>
-                        </tr>
-                    '''.format(
-                        lease.lease_id,
-                        format_as_vsys(lease.amount),
-                        lease.start_height,
-                        lease.stop_height,
-                        format_as_vsys(lease.total_interest),
-                    )
-                )
-
-            f.write('</table>')
-
-            f.write(f'<h2>Pool Distributions</h2>')
-            f.write('<table>')
-            f.write(
-                '''
-                    <tr>
+                        <th>Event</th>
                         <th>Height</th>
-                        <th>Pool Distribution ID</th>
                         <th>Amount</th>
-                        <th>Fee</th>
+                        <th>Balance</th>
                     </tr>
                 '''
             )
-            for pool_distribution in address.pool_distributions():
-                f.write(
-                    '''
-                        <tr>
-                            <td class="monospace">{}</td>
-                            <td class="monospace">{}</td>
-                            <td class="monospace">{}</td>
-                            <td class="monospace">{}</td>
-                        </tr>
-                    '''.format(
-                        pool_distribution.height,
-                        pool_distribution.pool_distribution_id,
-                        format_as_vsys(pool_distribution.amount),
-                        format_as_vsys(pool_distribution.fee),
+            balance = 0
+            for event in events:
+                if isinstance(event, MintingReward):
+                    amount = event.interest_for_address(address)
+                    balance += amount
+                    f.write('''
+                            <tr>
+                                <td class="monospace">{}</td>
+                                <td class="monospace">{}</td>
+                                <td class="monospace">{}</td>
+                                <td class="monospace">{}</td>
+                            </tr>
+                        '''.format(
+                            "Interest",
+                            f'<a href="../minting_reward_report/{event.minting_reward_id}.html">{event.height}</a>',
+                            format_as_vsys(amount),
+                            format_as_vsys(balance),
+                        )
                     )
-                )
+                else:
+                    amount = -1 * (event.amount + event.fee)
+                    balance += amount
+                    f.write('''
+                            <tr>
+                                <td class="monospace">{}</td>
+                                <td class="monospace">{}</td>
+                                <td class="monospace">{}</td>
+                                <td class="monospace">{}</td>
+                            </tr>
+                        '''.format(
+                            "Distribution",
+                            event.height,
+                            format_as_vsys(amount),
+                            format_as_vsys(balance),
+                        )
+                    )
 
             f.write('</table>')
             f.write('</body></html>')
@@ -176,13 +133,5 @@ if __name__ == '__main__':
         operation_fee_percent=operation_fee_percent
     )
     addresses = factory.get_addresses()
-    target_address = "ARHyBquEznSjSJWBEFPCsxrGPpih596TbVW"
-    address = None
-    for a in addresses:
-        if a.address == target_address:
-            address = a
-            break
 
-    print(address)
-    print(address.address)
     create_address_audit_pages(addresses, html_output_directory, height, supernode_name)

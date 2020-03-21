@@ -16,16 +16,10 @@ from decimal import Decimal
 import requests
 
 from pyvsystems_rewards.address_factory import AddressFactory
+from pyvsystems_rewards.format import format_as_vsys
 
 
 UTC_NOW = datetime.utcnow()
-
-
-def format_as_vsys(amount):
-    amount = int(amount)
-    whole = int(amount / 100000000)
-    fraction = amount % 100000000
-    return f'{whole}.{str(fraction).ljust(8, "0")}'
 
 
 def create_address_pages(addresses, html_output_directory, height, supernode_name):
@@ -56,58 +50,30 @@ def create_address_pages(addresses, html_output_directory, height, supernode_nam
                 </style>
             ''')
             f.write("<body>")
-            f.write(f'<h1>{supernode_name} Rewards Report</h1>')
-            f.write(f'<h2>Address <span class="monospace">{address.address}</span></h2>')
+            f.write(f'<h1><a href="../index.html">{supernode_name}</a> Address Report</h1>')
             f.write(f'<p>Page Updated: <span class="monospace">{UTC_NOW}</span></p>')
             f.write(f'<p>Current Block Height: <span class="monospace">{height}</span></p>')
+
+            f.write(f'<h2>Address <span class="monospace">{address.address}</span></h2>')
             f.write(f'<p>Total Interest: <span class="monospace">{format_as_vsys(address.total_interest)}</span></p>')
             f.write(f'<p>Total Pool Distribution: <span class="monospace">{format_as_vsys(address.total_pool_distribution)}</span></p>')
             f.write(f'<p>Interest Owed: <span class="monospace">{format_as_vsys(address.total_interest_owed())}</span></p>')
+            f.write(f'<p><a href="../address_audit_report/{address.address}.html">Address Audit Report</a></p>')
 
-            f.write(f'<h2>Active Leases</h2>')
+            f.write(f'<h3>Leases</h3>')
             f.write('<table>')
             f.write(
                 '''
                     <tr>
                         <th>Lease ID</th>
-                        <th>Amount</th>
-                        <th>Start Height</th>
-                        <th>Total Interest</th>
-                    </tr>
-                '''
-            )
-            for lease in address.active_leases(height):
-                f.write('''
-                        <tr>
-                            <td class="monospace">{}</td>
-                            <td class="monospace">{}</td>
-                            <td class="monospace">{}</td>
-                            <td class="monospace">{}</td>
-                        </tr>
-                    '''.format(
-                        lease.lease_id,
-                        format_as_vsys(lease.amount),
-                        lease.start_height,
-                        format_as_vsys(lease.total_interest),
-                    )
-                )
-
-            f.write('</table>')
-
-            f.write(f'<h2>Inactive Leases</h2>')
-            f.write('<table>')
-            f.write(
-                '''
-                    <tr>
-                        <th>Lease ID</th>
-                        <th>Amount</th>
                         <th>Start Height</th>
                         <th>Stop Height</th>
+                        <th>Amount</th>
                         <th>Total Interest</th>
                     </tr>
                 '''
             )
-            for lease in address.inactive_leases(height):
+            for lease in address.leases():
                 f.write('''
                         <tr>
                             <td class="monospace">{}</td>
@@ -118,22 +84,22 @@ def create_address_pages(addresses, html_output_directory, height, supernode_nam
                         </tr>
                     '''.format(
                         lease.lease_id,
-                        format_as_vsys(lease.amount),
                         lease.start_height,
                         lease.stop_height,
+                        format_as_vsys(lease.amount),
                         format_as_vsys(lease.total_interest),
                     )
                 )
 
             f.write('</table>')
 
-            f.write(f'<h2>Pool Distributions</h2>')
+            f.write(f'<h3>Pool Distributions</h3>')
             f.write('<table>')
             f.write(
                 '''
                     <tr>
-                        <th>Height</th>
                         <th>Pool Distribution ID</th>
+                        <th>Height</th>
                         <th>Amount</th>
                         <th>Fee</th>
                     </tr>
@@ -149,8 +115,8 @@ def create_address_pages(addresses, html_output_directory, height, supernode_nam
                             <td class="monospace">{}</td>
                         </tr>
                     '''.format(
-                        pool_distribution.height,
                         pool_distribution.pool_distribution_id,
+                        pool_distribution.height,
                         format_as_vsys(pool_distribution.amount),
                         format_as_vsys(pool_distribution.fee),
                     )
@@ -189,15 +155,15 @@ def create_index_page(factory, html_output_directory, height, supernode_name):
             '''
         )
         f.write('<body>')
-        f.write(f'<h1>{supernode_name} Rewards Report</h1>')
+        f.write(f'<h1><a href="../index.html">{supernode_name}</a> Address Report</h1>')
         f.write(f'<p>Page Updated: <span class="monospace">{UTC_NOW}</span></p>')
         f.write(f'<p>Current Block Height: <span class="monospace">{height}</span></p>')
+
+        f.write('<h2>Addresses</h2>')
         f.write(f'<p>Total Interest: <span class="monospace">{format_as_vsys(factory.total_interest)}</span></p>')
         f.write(f'<p>Total Operation Fee: <span class="monospace">{format_as_vsys(factory.total_operation_fee)}</span></p>')
         f.write(f'<p>Total Pool Distribution: <span class="monospace">{format_as_vsys(factory.total_pool_distribution)}</span></p>')
         f.write(f'<p>Total Interest Owed: <span class="monospace">{format_as_vsys(factory.total_interest-factory.total_pool_distribution)}</span></p>')
-
-        f.write('<h2>Lenders</h2>')
         f.write('<table>')
         f.write(
             '''
@@ -207,7 +173,8 @@ def create_index_page(factory, html_output_directory, height, supernode_name):
                     <th>Total Pool Distribution</th>
                     <th>Total Interest Owed</th></tr>
             ''')
-        for address in factory.get_addresses():
+
+        for address in sorted(factory.get_addresses(), key=lambda x: x.address):
             f.write(
                 '''
                     <tr>
@@ -244,5 +211,6 @@ if __name__ == '__main__':
         operation_fee_percent=operation_fee_percent
     )
     addresses = factory.get_addresses()
+
     create_address_pages(addresses, html_output_directory, height, supernode_name)
     create_index_page(factory, html_output_directory, height, supernode_name)
